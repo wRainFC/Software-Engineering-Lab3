@@ -25,7 +25,8 @@ def sql(statement):
 
 
 class Client:
-    def __init__(self, name=None):
+    def __init__(self, name=None, base=BASE):
+        self.base = base
         self.opener = urllib.request.build_opener(
             urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
         if name:
@@ -33,7 +34,7 @@ class Client:
 
     def call(self, path, data=None, *, expect=(200,), method=None):
         req = urllib.request.Request(
-            BASE + path, None if data is None else json.dumps(data).encode(),
+            self.base + path, None if data is None else json.dumps(data).encode(),
             method=method, headers={"Content-Type": "application/json", "X-Requested-With": "delivery"})
         try:
             response = self.opener.open(req, timeout=30)
@@ -193,9 +194,14 @@ def main():
     assert sql(Path("ops/integrity.sql").read_text()) == "0"
 
     subprocess.run(["docker", "compose", "restart", "app"], check=True)
+    # Docker may reassign the ephemeral host port when the container restarts.
+    address_after_restart = subprocess.check_output(
+        ["docker", "compose", "port", "app", "8080"], text=True).strip()
+    restored_api = f"http://{address_after_restart}/api"
+
     def recovered():
         try:
-            return Client("customer").call("/orders/" + str(order["id"]))["status"] == "COMPLETED"
+            return Client("customer", restored_api).call("/orders/" + str(order["id"]))["status"] == "COMPLETED"
         except (OSError, AssertionError):
             return False
     eventually(recovered, 90)
