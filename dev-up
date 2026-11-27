@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")"
+if [ ! -f .env ]; then
+    umask 077
+    tmp_env=$(mktemp .env.XXXXXX)
+    trap 'rm -f "$tmp_env"' EXIT
+    app_password=$(openssl rand -hex 24)
+    root_password=$(openssl rand -hex 24)
+    printf 'MYSQL_PASSWORD=%s\nMYSQL_ROOT_PASSWORD=%s\n' "$app_password" "$root_password" > "$tmp_env"
+    ln "$tmp_env" .env || test -f .env
+    rm -f "$tmp_env"
+fi
+docker compose config --quiet
+docker compose up --build --wait
+address=$(docker compose port app 8080)
+url="http://$address/actuator/health"
+for attempt in $(seq 1 60); do
+    if curl -fsS --max-time 3 "$url" 2>/dev/null; then
+        printf '\n%s\n' "$url"
+        exit 0
+    fi
+    sleep 1
+done
+echo "健康检查超时，可运行 docker compose logs app db 查看原因。" >&2
+exit 1
