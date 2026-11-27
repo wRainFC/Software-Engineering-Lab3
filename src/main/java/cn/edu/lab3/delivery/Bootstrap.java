@@ -32,12 +32,12 @@ class Bootstrap implements ApplicationRunner {
       return;
     }
     long customer = account("customer", "CUSTOMER");
-    long merchant = account("merchant", "MERCHANT");
     account("rider", "RIDER");
     account("rider2", "RIDER");
     db.update("""
         INSERT INTO address(customer_id,contact,phone,region,detail) VALUES(?,?,?,?,?)
         """, customer, "王同学", "13800000001", "仙林校区", "学生宿舍 3 栋门口");
+    long merchant = account("merchant", "MERCHANT");
     long shop = shop(merchant, "老街牛肉面", 300);
     dish(shop, "红烧牛肉面", "面食", 2200, 30);
     dish(shop, "番茄鸡蛋面", "面食", 1600, 18);

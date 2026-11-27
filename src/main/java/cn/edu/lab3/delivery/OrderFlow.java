@@ -68,7 +68,6 @@ class OrderFlow {
     actor.require(edge.role);
     String number = Problem.requestNo(cmd.requestNo());
     var order = db.one("SELECT * FROM orders WHERE id=? FOR UPDATE", id);
-    long shop = Db.num(order, "shop_id");
     authorize(actor, id, order, cmd.taskId());
     String hash = Checkout.digest(id + "/" + cmd);
     var previous = db.rows("SELECT * FROM action_receipt WHERE operator_id=? AND request_no=?",
@@ -136,6 +135,7 @@ class OrderFlow {
         WHERE id=? AND version=?
         """, edge.to, reason.isBlank() ? order.get("reason") : reason, edge == Edge.COOK, id,
         version));
+    long shop = Db.num(order, "shop_id");
     audit.record(actor, "order/" + id, id, shop, edge.name(), status, edge.to, "OK", reason,
         number);
     if (actor.id() != 0) {
