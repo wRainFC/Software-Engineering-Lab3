@@ -70,6 +70,8 @@ def main():
     other = Client("new_customer")
     assert other.call("/me")["role"] == "CUSTOMER"
     other.call("/admin/users", expect=(403,))
+    for path in ["/shops", "/dishes", "/orders", "/statistics", "/admin/users"]:
+        rider.call(path, expect=(403,))
     shops = merchant.call("/shops")
     shop = shops[0]
     dish, another = merchant.call("/dishes?shop=" + str(shop["id"]))[:2]

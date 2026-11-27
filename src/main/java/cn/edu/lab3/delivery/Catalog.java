@@ -36,8 +36,15 @@ class Catalog {
     this.audit = audit;
   }
 
+  private void checkCatalogAccess(Actor actor) {
+    if (actor.role().equals("RIDER")) {
+      throw Problem.denied();
+    }
+  }
+
   @GetMapping("/shops")
   List<Map<String, Object>> shops(@RequestAttribute Actor actor) {
+    checkCatalogAccess(actor);
     if (actor.role().equals("MERCHANT")) {
       return db.rows("SELECT * FROM shop WHERE owner_id=? ORDER BY id", actor.id());
     }
@@ -47,6 +54,7 @@ class Catalog {
   @GetMapping("/dishes")
   List<Map<String, Object>> dishes(@RequestAttribute Actor actor,
       @RequestParam Map<String, String> q) {
+    checkCatalogAccess(actor);
     var f = new Filters();
     if (actor.role().equals("MERCHANT")) {
       f.add("s.owner_id=?", actor.id());
