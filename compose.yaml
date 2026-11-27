@@ -21,10 +21,39 @@ services:
     environment:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请先运行 ./dev-up}
       TZ: Asia/Shanghai
+      DELIVERY_DEMO: ${DELIVERY_DEMO:-true}
+      DELIVERY_INITIAL_PASSWORD: ${DELIVERY_INITIAL_PASSWORD:?请先运行 ./dev-up}
+      DELIVERY_REFUND_FAIL_FIRST: ${DELIVERY_REFUND_FAIL_FIRST:-false}
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -ec
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8080;
+          printf 'GET /actuator/health HTTP/1.0\r\n\r\n' >&3;
+          read -r status <&3;
+          [[ "$$status" == *" 200 "* ]]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     depends_on:
       db:
+        condition: service_healthy
+  backup:
+    image: mysql:8.4
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    entrypoint: ["/bin/sh", "/ops/backup.sh"]
+    environment:
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请先运行 ./dev-up}
+    volumes:
+      - ./ops/backup.sh:/ops/backup.sh:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+    depends_on:
+      app:
         condition: service_healthy
 volumes:
   mysql-data:

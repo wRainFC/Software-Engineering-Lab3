@@ -11,13 +11,19 @@ if [ ! -f .env ]; then
     ln "$tmp_env" .env || test -f .env
     rm -f "$tmp_env"
 fi
+umask 077
+if ! grep -q '^DELIVERY_INITIAL_PASSWORD=' .env; then
+    printf 'DELIVERY_INITIAL_PASSWORD=%s\n' "$(openssl rand -hex 12)" >> .env
+fi
+export LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)"
+mkdir -p "${BACKUP_DIR:-backups}"
 docker compose config --quiet
 docker compose up --build --wait
 address=$(docker compose port app 8080)
 url="http://$address/actuator/health"
 for attempt in $(seq 1 60); do
     if curl -fsS --max-time 3 "$url" 2>/dev/null; then
-        printf '\n%s\n' "$url"
+        printf '\n访问速达外卖：http://%s/\n演示登录密码见 lab3/.env 的 DELIVERY_INITIAL_PASSWORD。\n' "$address"
         exit 0
     fi
     sleep 1

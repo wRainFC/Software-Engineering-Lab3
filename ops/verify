@@ -1,0 +1,22 @@
+#!/bin/sh
+# Build and exercise an isolated Compose project with a fresh database, then remove only that project.
+set -eu
+cd "$(dirname "$0")/.."
+suite=$(mktemp -d)
+project="delivery-test-$(date +%s)-$$"
+export COMPOSE_PROJECT_NAME="$project"
+export APP_PORT=0 DELIVERY_DEMO=true DELIVERY_REFUND_FAIL_FIRST=true
+export DELIVERY_INITIAL_PASSWORD="$(openssl rand -hex 12)"
+export MYSQL_PASSWORD="$(openssl rand -hex 16)" MYSQL_ROOT_PASSWORD="$(openssl rand -hex 16)"
+export BACKUP_DIR="$suite" LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)"
+cleanup() {
+    docker compose down -v --remove-orphans
+    rm -rf "$suite"
+}
+trap cleanup EXIT
+docker compose up --build --wait
+export DELIVERY_TEST_BASE="http://$(docker compose port app 8080)"
+python3 ops/acceptance.py
+docker compose exec -T backup sh /ops/backup.sh once
+dump=$(ls -t "$suite"/delivery-*.sql | head -1)
+ops/restore-check "$dump"
